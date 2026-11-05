@@ -46,7 +46,7 @@ Copy-Item (Join-Path $docs 'pedido.json') (Join-Path $datos 'pedido.json') -Forc
 # Página: el panel de claude.ai con el reemplazo de sólo lectura de window.claude.
 $panel = [IO.File]::ReadAllText((Join-Path $src 'panel-pepsico.html'), $enc)
 $marca = '<div class="wrap">'
-if ($panel.IndexOf($marca) -lt 0) { throw "No encontré '$marca' en panel-pepsico.html" }
+if ($panel.IndexOf($marca) -lt 0) { throw "Falta '$marca' en panel-pepsico.html" }
 $panel = $panel.Replace($marca, "<script src=""claude-shim.js""></script>`n" + $marca)
 $cabeza = "<!doctype html>`n<html lang=""es"">`n<meta charset=""utf-8"">`n<meta name=""viewport"" content=""width=device-width, initial-scale=1"">`n"
 [IO.File]::WriteAllText((Join-Path $Repo 'index.html'), $cabeza + $panel, $enc)
@@ -67,5 +67,5 @@ $p = & $leer (Join-Path $docs 'pedido.json')
 $msg = "Datos al $($p.generado.Substring(0, 10))`n`nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git -C $Repo commit -q -m $msg
 git -C $Repo push -u origin main
-if ($LASTEXITCODE -ne 0) { throw 'git push falló' }
+if ($LASTEXITCODE -ne 0) { throw 'git push no pudo subir los cambios' }
 'Publicado: https://marianozeballos-tp.github.io/panel-pepsico/'
