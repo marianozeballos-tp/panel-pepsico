@@ -19,4 +19,8 @@ Los datos son una foto: están en `datos/` y se actualizan con `publicar-github.
 | `claude-shim.js` | Hace que el panel lea `datos/*.json` en vez de Base Gescom y la base del panel. |
 | `datos/` | Fotos de pedido, objetivos, recibido y artículos activos. |
 | `recibido-pepsico.ps1` | Baja de Gescom los remitos de ingreso de PepsiCo por mes y artículo. |
+| `pedido-pepsico.sql` | Consulta del pedido sugerido en Base Gescom (14 días, entrega en el día). |
+| `guardar-pedido.ps1` | Guarda la respuesta de esa consulta como foto del pedido. |
 | `publicar-github.ps1` | Arma `index.html` y `datos/` y los sube a este repo. |
+
+La tarea programada `recibido-pepsico` (lunes a sábado, 8:00 y 14:00) actualiza los remitos, la foto del pedido, el objetivo y la lista de activos, y vuelve a publicar.

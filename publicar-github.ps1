@@ -32,15 +32,24 @@ if (-not (Test-Path (Join-Path $Repo '.git'))) {
 # Datos: un archivo por colección, { id: documento }, como la base del panel.
 $datos = Join-Path $Repo 'datos'
 New-Item -ItemType Directory -Force $datos | Out-Null
-foreach ($col in 'recibido', 'activos') {
+# recibido sale de recibido-pepsico.ps1 (docs). objetivos y activos salen de la base del panel,
+# bajada por la tarea a base\<colección>\<mes>.json; si no está, se usa la copia de docs.
+$base = Join-Path $src 'base'
+foreach ($col in 'recibido', 'activos', 'objetivos') {
   $o = [ordered]@{}
-  Get-ChildItem $docs -Filter "$col-*.json" | Sort-Object Name | ForEach-Object {
+  $dir = Join-Path $base $col
+  $fuente = if ($col -ne 'recibido' -and (Test-Path $dir) -and (Get-ChildItem $dir -Filter '*.json')) { Get-ChildItem $dir -Filter '*.json' }
+            else { Get-ChildItem $docs -Filter "$col-*.json" }
+  $fuente | Sort-Object Name | ForEach-Object {
     $d = & $leer $_.FullName
+    if ($d.PSObject.Properties['por']) { $d.PSObject.Properties.Remove('por') }
     $o[$d.mes] = $d
+  }
+  if ($col -eq 'objetivos' -and $o.Count -eq 0 -and (Test-Path (Join-Path $docs 'objetivos.json'))) {
+    Copy-Item (Join-Path $docs 'objetivos.json') (Join-Path $datos 'objetivos.json') -Force; continue
   }
   [IO.File]::WriteAllText((Join-Path $datos "$col.json"), (ConvertTo-Json $o -Depth 6 -Compress), $enc)
 }
-Copy-Item (Join-Path $docs 'objetivos.json') (Join-Path $datos 'objetivos.json') -Force
 Copy-Item (Join-Path $docs 'pedido.json') (Join-Path $datos 'pedido.json') -Force
 
 # Página: el panel de claude.ai con el reemplazo de sólo lectura de window.claude.
@@ -55,6 +64,8 @@ Copy-Item (Join-Path $src 'claude-shim.js') $Repo -Force
 Copy-Item (Join-Path $src 'panel-pepsico.html') $Repo -Force
 Copy-Item (Join-Path $src 'recibido-pepsico.ps1') $Repo -Force
 Copy-Item (Join-Path $src 'publicar-github.ps1') $Repo -Force
+Copy-Item (Join-Path $src 'guardar-pedido.ps1') $Repo -Force
+Copy-Item (Join-Path $src 'pedido-pepsico.sql') $Repo -Force
 Copy-Item (Join-Path $src 'disponibilidad-pepsico.md') $Repo -Force
 if (Test-Path (Join-Path $src 'README.md')) { Copy-Item (Join-Path $src 'README.md') $Repo -Force }
 [IO.File]::WriteAllText((Join-Path $Repo '.nojekyll'), '', $enc)
