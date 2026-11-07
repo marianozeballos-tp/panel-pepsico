@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pedidos PepsiCo</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --fg: #1d1d1b; --muted: #6b6a65; --line: #e3e2dc;
+    --ok: #2f7d32; --warn: #a86500; --bad: #c0362c; --chart-muted: #c9c8c1; --accent: #1f5fa8;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --panel: #1f1f1d; --fg: #ecebe6; --muted: #a3a29b; --line: #34332f;
+      --ok: #6cc070; --warn: #e2a33b; --bad: #ef7469; --chart-muted: #55544e; --accent: #7fb0ec; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 20px; }
+  h1 { margin: 0; font: 400 28px/1.15 Georgia, "Times New Roman", serif; }
+  h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .take { margin: 4px 0 0; color: var(--muted); max-width: 75ch; }
+  .take b { color: var(--fg); }
+  .note { margin: 0; font-size: 12px; color: var(--muted); }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 4px; align-content: start; }
+  .tile .l { font-size: 12px; color: var(--muted); }
+  .tile .n { font: 400 28px/1.1 Georgia, serif; }
+  .tile .s { font-size: 12px; color: var(--muted); }
+  .tile.ok .n { color: var(--ok); } .tile.warn .n { color: var(--warn); } .tile.bad .n { color: var(--bad); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); list-style: none; margin: 0; padding: 0; }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+  .chart { position: relative; min-height: 220px; }
+  .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+  .tip .d { color: var(--muted); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
+  .filters label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  select, input, button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  input[type=search] { width: 14rem; max-width: 100%; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tablewrap { overflow: auto; max-height: 70vh; border-top: 1px solid var(--line); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 0; white-space: nowrap; z-index: 1; }
+  th button { border: 0; background: none; padding: 6px 8px; width: 100%; text-align: inherit; color: inherit; font-weight: inherit; }
+  th[aria-sort=ascending] button::after { content: " \2191"; } th[aria-sort=descending] button::after { content: " \2193"; }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .num { text-align: right; } .nw { white-space: nowrap; } .mut { color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: .35em; white-space: nowrap; font-weight: 600; }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .s-ok { color: var(--ok); } .s-ok2 { color: var(--ok); } .s-ok2::before { opacity: .45; }
+  .s-warn { color: var(--warn); } .s-bad { color: var(--bad); } .s-mut { color: var(--muted); }
+  @media (max-width: 760px) { .hn { display: none; } }
+  details { font-size: 12.5px; color: var(--muted); }
+  details dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+  details dt { color: var(--fg); font-weight: 600; } details dd { margin: 0; }
+  .err { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Pedidos PepsiCo</h1>
+    <p class="take" id="take">Cargando pedidos…</p>
+    <p class="note" id="stamp"></p>
+  </header>
+
+  <section class="tiles" aria-label="Resumen">
+    <div class="tile"><span class="l">Pedidos del período</span><span class="n" id="k-ped">—</span><span class="s">Por fecha de carga</span></div>
+    <div class="tile"><span class="l">Cargados el último día</span><span class="n" id="k-ult">—</span><span class="s" id="k-ultd">—</span></div>
+    <div class="tile ok"><span class="l">Armados</span><span class="n" id="k-arm">—</span><span class="s" id="k-pct">—</span></div>
+    <div class="tile bad"><span class="l">Sin armar</span><span class="n" id="k-sin">—</span><span class="s" id="k-nover">—</span></div>
+    <div class="tile"><span class="l">Sin camión asignado</span><span class="n" id="k-cam">—</span><span class="s">Sin reparto todavía</span></div>
+    <div class="tile bad"><span class="l">Con camión y no están en Digip</span><span class="n" id="k-dig">—</span><span class="s" id="k-digs">—</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Pedidos por día de carga</h2>
+    <p class="note">Cada barra es un día; el color dice en qué quedó el armado. Tocá una barra para ver ese día en la tabla.</p>
+    <ul class="legend">
+      <li><span class="sw" style="background:var(--ok)"></span>Armado</li>
+      <li><span class="sw" style="background:var(--ok);opacity:.45"></span>Salió en camión</li>
+      <li><span class="sw" style="background:var(--warn)"></span>En preparación</li>
+      <li><span class="sw" style="background:var(--bad)"></span>Sin armar</li>
+      <li><span class="sw" style="background:var(--chart-muted)"></span>Sin verificar</li>
+    </ul>
+    <div class="chart" id="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Pedidos</h2>
+    <div class="filters">
+      <label>Fecha de carga <select id="f-fecha"><option value="">Todas</option></select></label>
+      <label>Camión <select id="f-camion"><option value="">Todos</option><option value="__sin">Sin camión</option></select></label>
+      <label>Canal <select id="f-canal"><option value="">Todos</option><option value="AXUM">AXUM (preventa)</option><option value="MiNegocio">MiNegocio (app del cliente)</option><option value="gcw">Cargado en Gescom</option></select></label>
+      <label>Armado <select id="f-armado"><option value="">Todos</option><option>Armado</option><option>Salió en camión</option><option>En preparación</option><option>Sin armar</option><option>Sin verificar</option><option value="__no">Todo lo no armado</option></select></label>
+      <label>Digip <select id="f-digip"><option value="">Todos</option><option value="si">Está en Digip</option><option value="no">No está en Digip</option><option value="nocam">No está y tiene camión</option></select></label>
+      <label>Buscar <input type="search" id="f-q" placeholder="Cliente, pedido, chofer…"></label>
+      <button type="button" id="f-reset">Limpiar filtros</button>
+    </div>
+    <p class="note"><span id="count">—</span> pedidos en la tabla</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-k="pedido"><button type="button">Pedido</button></th>
+          <th data-k="cargado" aria-sort="descending"><button type="button">Cargado</button></th>
+          <th data-k="canal"><button type="button">Canal</button></th>
+          <th data-k="nombre"><button type="button">Cliente</button></th>
+          <th data-k="dia_cliente"><button type="button">Día del cliente</button></th>
+          <th data-k="entrega"><button type="button">Entrega</button></th>
+          <th data-k="camion"><button type="button">Camión</button></th>
+          <th data-k="chofer" class="hn"><button type="button">Chofer</button></th>
+          <th data-k="etapa_reparto" class="hn"><button type="button">Reparto</button></th>
+          <th data-k="armado"><button type="button">Armado</button></th>
+          <th data-k="digip"><button type="button">Digip</button></th>
+          <th data-k="bodeguista" class="hn"><button type="button">Armó</button></th>
+          <th data-k="bultos" class="num"><button type="button">Bultos</button></th>
+          <th data-k="importe" class="num hn"><button type="button">Importe PepsiCo</button></th>
+        </tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details>
+    <summary>Qué cuenta y de dónde sale cada dato</summary>
+    <dl>
+      <dt>Esta página</dt><dd>Copia de solo lectura del tablero Pedidos PepsiCo. Se actualiza cada hora, de 7 a 18, de lunes a sábado. Muestra los últimos días por fecha de carga.</dd>
+      <dt>Pedido PepsiCo</dt><dd>Venta tipo VEN de Gescom con al menos un artículo del proveedor 100 (Pepsico de Argentina). No cuentan envases, pallets ni exhibidores. Bultos e importe son solo de los artículos PepsiCo.</dd>
+      <dt>Canal</dt><dd>AXUM es la preventa del vendedor, MiNegocio es la app del cliente y Gescom es un pedido cargado a mano en el sistema.</dd>
+      <dt>Camión y chofer</dt><dd>Los del reparto al que está asignado el pedido.</dd>
+      <dt>Armado</dt><dd>Órdenes de preparación de Gescom. Armado: el depósito lo marcó preparado. En preparación: tiene orden sin cerrar. Salió en camión: sin orden registrada, pero el reparto ya salió o se rindió. Sin armar: no tiene orden. Sin verificar: se cargó después de la última lectura.</dd>
+      <dt>Digip</dt><dd>Si el pedido figura en Digip, el sistema del depósito, por su número de pedido. Muestra el estado que tiene allá. Los pedidos entran a Digip cuando se rutean: sin camión, que no esté es lo esperable; con camión, no.</dd>
+    </dl>
+  </details>
+</div>
+
+<script>
+(function () {
+  var D = null, st = { sort: 'cargado', dir: -1, fecha: '', camion: '', canal: '', armado: '', digip: '', q: '' };
+  var $ = function (id) { return document.getElementById(id); };
+  var nf = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
+  var nf2 = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
+  var mf = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  var pf = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 0 });
+  var WD = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  function dia(s) { if (!s) return ''; var d = new Date(s.slice(0, 10) + 'T12:00:00'); return WD[d.getDay()] + ' ' + s.slice(8, 10) + '/' + s.slice(5, 7); }
+  function hora(s) { return s && s.length > 11 ? s.slice(11, 16) : ''; }
+  function canal(c) { return { AXUM: 'AXUM', MiNegocio: 'MiNegocio', gcw: 'Gescom' }[c] || c || '—'; }
+  var ARM = ['Armado', 'Salió en camión'];
+  function enDigip(p) { return p.digip !== 'No está' && p.digip !== 'Sin verificar'; }
+  function clsArm(a) { return { 'Armado': 's-ok', 'Salió en camión': 's-ok2', 'En preparación': 's-warn', 'Sin armar': 's-bad' }[a] || 's-mut'; }
+  function clsDig(p) { if (p.digip === 'Sin verificar') return 's-mut'; if (p.digip === 'No está') return p.camion ? 's-bad' : 's-mut'; if (p.digip === 'Eliminado') return 's-bad'; if (p.digip === 'Pendiente') return 's-warn'; return 's-ok'; }
+  function txt(el, t) { el.textContent = t; }
+
+  function summary() {
+    var P = D.pedidos, n = function (f) { return P.filter(f).length; };
+    var ult = P.reduce(function (m, p) { var d = p.cargado.slice(0, 10); return d > m ? d : m; }, '');
+    var arm = n(function (p) { return ARM.indexOf(p.armado) >= 0; });
+    var sin = n(function (p) { return p.armado === 'Sin armar'; });
+    var cam = n(function (p) { return !p.camion; });
+    var nod = n(function (p) { return p.digip === 'No está' && p.camion; });
+    txt($('k-ped'), nf.format(P.length));
+    txt($('k-ult'), nf.format(n(function (p) { return p.cargado.slice(0, 10) === ult; })));
+    txt($('k-ultd'), 'Día ' + dia(ult));
+    txt($('k-arm'), nf.format(arm));
+    txt($('k-pct'), (P.length ? pf.format(arm / P.length) : '—') + ' del período');
+    txt($('k-sin'), nf.format(sin));
+    txt($('k-nover'), nf.format(n(function (p) { return p.armado === 'Sin verificar'; })) + ' cargados después de la última lectura');
+    txt($('k-cam'), nf.format(cam));
+    txt($('k-dig'), nf.format(nod));
+    txt($('k-digs'), nf.format(n(enDigip)) + ' sí figuran en Digip');
+    txt($('take'), 'En los últimos ' + D.dias + ' días se cargaron ' + nf.format(P.length) + ' pedidos con productos PepsiCo. ' + nf.format(sin) + ' figuran sin armar, ' + nf.format(cam) + ' todavía no tienen camión y ' + nf.format(nod) + ' tienen camión pero no figuran en Digip.');
+    txt($('stamp'), 'Actualizado ' + dia(D.generado) + ' ' + hora(D.generado) + ' · armado leído de Gescom ' + dia(D.armado_leido) + ' ' + hora(D.armado_leido) + ' · Digip ' + dia(D.digip_leido) + ' ' + hora(D.digip_leido) + '. Copia de solo lectura, se actualiza cada hora.');
+  }
+
+  function chart() {
+    var el = $('chart'); el.replaceChildren();
+    var by = {}, keys = ['Armado', 'Salió en camión', 'En preparación', 'Sin armar', 'Sin verificar'];
+    var col = ['var(--ok)', 'var(--ok)', 'var(--warn)', 'var(--bad)', 'var(--chart-muted)'], op = [1, .45, 1, 1, 1];
+    D.pedidos.forEach(function (p) { var d = p.cargado.slice(0, 10); by[d] = by[d] || { dia: d, total: 0 }; by[d][p.armado] = (by[d][p.armado] || 0) + 1; by[d].total++; });
+    var rows = Object.keys(by).sort().map(function (k) { return by[k]; });
+    if (!rows.length) { txt(el, 'Sin pedidos en el período'); return; }
+    var W = Math.max(280, el.clientWidth), H = 220, max = Math.max.apply(null, rows.map(function (r) { return r.total; }));
+    var step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step; if (top / step > 5) step *= 2; top = Math.ceil(max / step) * step;
+    var left = String(nf.format(top)).length * 7 + 12, bottom = H - 26, plotW = W - left - 4;
+    var y = function (v) { return bottom - (v / top) * (bottom - 8); };
+    var NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Pedidos por día de carga');
+    function mk(tag, at, parent) { var e = document.createElementNS(NS, tag); for (var k in at) e.setAttribute(k, at[k]); (parent || svg).appendChild(e); return e; }
+    for (var t = 0; t <= top; t += step) {
+      mk('line', { x1: left, x2: W - 4, y1: y(t), y2: y(t), stroke: 'var(--line)' });
+      var tl = mk('text', { x: left - 6, y: y(t), dy: '0.32em', 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tl.textContent = nf.format(t);
+    }
+    var bandW = plotW / rows.length, bw = Math.min(32, bandW * 0.7), lab = Math.ceil(rows.length / Math.max(1, Math.floor(plotW / 60)));
+    var tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true;
+    rows.forEach(function (r, i) {
+      var x0 = left + i * bandW, xb = x0 + (bandW - bw) / 2, acc = 0, dim = st.fecha && st.fecha !== r.dia ? 0.35 : 1;
+      keys.forEach(function (k, j) { var v = r[k] || 0; if (!v) return; mk('rect', { x: xb, width: bw, y: y(acc + v), height: Math.max(0, y(acc) - y(acc + v)), fill: col[j], 'fill-opacity': op[j], opacity: dim, rx: 2 }); acc += v; });
+      if (i % lab === 0) { var lt = mk('text', { x: x0 + bandW / 2, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); lt.textContent = dia(r.dia); }
+      var hit = mk('rect', { x: x0, width: bandW, y: 0, height: bottom, fill: 'transparent' }); hit.style.cursor = 'pointer';
+      hit.addEventListener('mousemove', function (ev) {
+        tip.replaceChildren(); var h = document.createElement('div'); h.className = 'd'; h.textContent = dia(r.dia) + ' · ' + nf.format(r.total) + ' pedidos'; tip.appendChild(h);
+        keys.forEach(function (k) { if (r[k]) { var l = document.createElement('div'); l.textContent = k + ': ' + nf.format(r[k]); tip.appendChild(l); } });
+        tip.hidden = false; var b = el.getBoundingClientRect(), mx = ev.clientX - b.left, my = ev.clientY - b.top;
+        tip.style.left = Math.max(0, Math.min(el.clientWidth - tip.offsetWidth, mx + 12)) + 'px'; tip.style.top = Math.max(0, my - 10) + 'px';
+      });
+      hit.addEventListener('mouseleave', function () { tip.hidden = true; });
+      hit.addEventListener('click', function () { st.fecha = st.fecha === r.dia ? '' : r.dia; $('f-fecha').value = st.fecha; chart(); table(); });
+    });
+    el.appendChild(svg); el.appendChild(tip);
+  }
+
+  function filtered() {
+    var q = st.q.trim().toLowerCase();
+    return D.pedidos.filter(function (r) {
+      if (st.fecha && r.cargado.slice(0, 10) !== st.fecha) return false;
+      if (st.camion === '__sin' && r.camion) return false;
+      if (st.camion && st.camion !== '__sin' && String(r.camion) !== st.camion) return false;
+      if (st.canal && r.canal !== st.canal) return false;
+      if (st.armado === '__no' && ARM.indexOf(r.armado) >= 0) return false;
+      if (st.armado && st.armado !== '__no' && r.armado !== st.armado) return false;
+      if (st.digip === 'si' && !enDigip(r)) return false;
+      if (st.digip === 'no' && r.digip !== 'No está') return false;
+      if (st.digip === 'nocam' && !(r.digip === 'No está' && r.camion)) return false;
+      if (q && [r.pedido, r.canal, r.cliente, r.nombre, r.localidad, r.chofer, r.camion, r.bodeguista].join(' ').toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+
+  function table() {
+    var rows = filtered().sort(function (a, b) {
+      var va = a[st.sort], vb = b[st.sort];
+      if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
+      return (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'es', { numeric: true })) * st.dir;
+    });
+    txt($('count'), nf.format(rows.length));
+    var tb = $('tb'), frag = document.createDocumentFragment();
+    function td(tr, t, c) { var e = document.createElement('td'); if (c) e.className = c; e.textContent = t; tr.appendChild(e); return e; }
+    function pill(tr, t, c) { var e = document.createElement('td'), s = document.createElement('span'); s.className = 'pill ' + c; s.textContent = t; e.appendChild(s); tr.appendChild(e); }
+    rows.forEach(function (p) {
+      var tr = document.createElement('tr');
+      td(tr, String(p.pedido), 'nw');
+      td(tr, dia(p.cargado) + ' ' + hora(p.cargado), 'nw');
+      td(tr, canal(p.canal), 'nw');
+      var c = td(tr, p.nombre || p.cliente);
+      var s = document.createElement('div'); s.className = 'mut'; s.textContent = '#' + p.cliente + (p.localidad ? ' · ' + p.localidad : ''); c.appendChild(s);
+      td(tr, p.dia_cliente || '—', 'nw');
+      td(tr, dia(p.entrega), 'nw');
+      td(tr, p.camion ? String(p.camion) : 'Sin asignar', p.camion ? 'nw' : 'nw mut');
+      td(tr, p.chofer || '', 'hn');
+      td(tr, p.etapa_reparto ? p.etapa_reparto + (p.fecha_reparto ? ' · ' + dia(p.fecha_reparto) : '') : '', 'nw hn');
+      pill(tr, p.armado, clsArm(p.armado));
+      pill(tr, p.digip, clsDig(p));
+      td(tr, p.bodeguista ? p.bodeguista + (p.orden_creada ? ' · ' + hora(p.orden_creada) : '') : '', 'hn');
+      td(tr, nf2.format(p.bultos), 'num');
+      td(tr, mf.format(p.importe), 'num hn');
+      frag.appendChild(tr);
+    });
+    tb.replaceChildren(frag);
+  }
+
+  function fillSelects() {
+    var dias = Array.from(new Set(D.pedidos.map(function (p) { return p.cargado.slice(0, 10); }))).sort().reverse();
+    dias.forEach(function (d) { $('f-fecha').appendChild(new Option(dia(d), d)); });
+    var cams = Array.from(new Set(D.pedidos.map(function (p) { return p.camion; }).filter(Boolean))).sort(function (a, b) { return String(a).localeCompare(String(b), 'es', { numeric: true }); });
+    cams.forEach(function (c) { $('f-camion').appendChild(new Option('Camión ' + c, String(c))); });
+  }
+
+  [['f-fecha', 'fecha'], ['f-camion', 'camion'], ['f-canal', 'canal'], ['f-armado', 'armado'], ['f-digip', 'digip']].forEach(function (x) {
+    $(x[0]).addEventListener('change', function (e) { st[x[1]] = e.target.value; if (x[1] === 'fecha') chart(); table(); });
+  });
+  $('f-q').addEventListener('input', function (e) { st.q = e.target.value; table(); });
+  $('f-reset').addEventListener('click', function () {
+    ['fecha', 'camion', 'canal', 'armado', 'digip', 'q'].forEach(function (k) { st[k] = ''; });
+    ['f-fecha', 'f-camion', 'f-canal', 'f-armado', 'f-digip', 'f-q'].forEach(function (id) { $(id).value = ''; });
+    chart(); table();
+  });
+  document.querySelectorAll('th[data-k] button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.parentNode.getAttribute('data-k');
+      st.dir = st.sort === k ? -st.dir : (['cargado', 'entrega', 'bultos', 'importe', 'pedido'].indexOf(k) >= 0 ? -1 : 1); st.sort = k;
+      document.querySelectorAll('th[data-k]').forEach(function (t) { t.setAttribute('aria-sort', t.getAttribute('data-k') === k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'); });
+      table();
+    });
+  });
+  var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (D) chart(); }, 150); });
+
+  fetch('datos.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (j) { D = j; summary(); fillSelects(); chart(); table(); })
+    .catch(function () { var t = $('take'); t.className = 'take err'; t.textContent = 'No se pudieron cargar los datos. Recargá la página en unos minutos.'; });
+})();
+</script>
+</body>
+</html>
