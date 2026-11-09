@@ -153,7 +153,7 @@
       <p class="note">Fecha correcta = el primer día de entrega del cliente desde que cargó el pedido más su demora. Su día de entrega es el día de visita más la demora (1 día casi siempre); si cae sábado o domingo, pasa al lunes.</p>
       <div class="filters">
         <label>Resultado <select id="e-res"><option value="__mal">Todo lo que no está en fecha</option><option value="">Todos</option><option>En fecha</option><option>Atrasado</option><option>Adelantado</option><option>Camión en otra fecha</option><option>Sin fecha de entrega</option><option>Cliente sin días</option></select></label>
-        <label>Entrega <select id="e-fecha"><option value="">Todas</option></select></label>
+        <label>Fecha de carga <select id="e-fcarga"><option value="">Todas</option></select></label>
         <label>Canal <select id="e-canal"><option value="">Todos</option><option value="AXUM">AXUM (preventa)</option><option value="MiNegocio">MiNegocio (app del cliente)</option><option value="gcw">Cargado en Gescom</option></select></label>
         <label>Buscar <input type="search" id="e-q" placeholder="Cliente, pedido, chofer…"></label>
         <button type="button" id="e-reset">Limpiar filtros</button>
@@ -353,7 +353,7 @@
   function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function addD(s, n) { var d = fd(s); d.setDate(d.getDate() + n); return iso(d); }
   function difD(a, b) { return Math.round((fd(a) - fd(b)) / 86400000); }
-  var es = { res: '__mal', fecha: '', canal: '', q: '' };
+  var es = { res: '__mal', fecha: '', fcarga: '', camion: '', canal: '', q: '' };
   var ORD = { 'Atrasado': 0, 'Camión en otra fecha': 1, 'Adelantado': 2, 'Sin fecha de entrega': 3, 'Cliente sin días': 4, 'En fecha': 5 };
   var CLS = { 'En fecha': 's-ok', 'Atrasado': 's-bad', 'Adelantado': 's-warn', 'Camión en otra fecha': 's-bad' };
   function calcEntrega() {
@@ -384,6 +384,8 @@
     txt($('e-take'), 'De ' + nf.format(tot) + ' pedidos con día de entrega definido, ' + nf.format(ok) + ' están para entregar en su fecha correcta. ' + nf.format(n('Atrasado')) + ' tienen una entrega más tarde que la que le corresponde al cliente, ' + nf.format(n('Adelantado')) + ' una más temprana y ' + nf.format(n('Camión en otra fecha')) + ' están en un camión de otra fecha.');
     var fe = Array.from(new Set(P.map(function (p) { return String(p.entrega || '').slice(0, 10); }).filter(Boolean))).sort();
     fe.forEach(function (d) { $('e-fecha').appendChild(new Option(dia(d), d)); });
+    Array.from(new Set(P.map(function (p) { return p.cargado.slice(0, 10); }))).sort().reverse().forEach(function (d) { $('e-fcarga').appendChild(new Option(dia(d), d)); });
+    Array.from(new Set(P.map(function (p) { return p.camion; }).filter(Boolean))).sort(function (a, b) { return String(a).localeCompare(String(b), 'es', { numeric: true }); }).forEach(function (c) { $('e-camion').appendChild(new Option('Camión ' + c, String(c))); });
   }
   function tableEnt() {
     var q = es.q.trim().toLowerCase();
@@ -391,6 +393,9 @@
       if (es.res === '__mal' && r.res_entrega === 'En fecha') return false;
       if (es.res && es.res !== '__mal' && r.res_entrega !== es.res) return false;
       if (es.fecha && String(r.entrega || '').slice(0, 10) !== es.fecha) return false;
+      if (es.fcarga && r.cargado.slice(0, 10) !== es.fcarga) return false;
+      if (es.camion === '__sin' && r.camion) return false;
+      if (es.camion && es.camion !== '__sin' && String(r.camion) !== es.camion) return false;
       if (es.canal && r.canal !== es.canal) return false;
       if (q && [r.pedido, r.canal, r.cliente, r.nombre, r.localidad, r.chofer, r.camion].join(' ').toLowerCase().indexOf(q) < 0) return false;
       return true;
@@ -418,9 +423,9 @@
     });
     $('e-tb').replaceChildren(frag);
   }
-  [['e-res', 'res'], ['e-fecha', 'fecha'], ['e-canal', 'canal']].forEach(function (x) { $(x[0]).addEventListener('change', function (e) { es[x[1]] = e.target.value; tableEnt(); }); });
+  [['e-res', 'res'], ['e-fecha', 'fecha'], ['e-fcarga', 'fcarga'], ['e-camion', 'camion'], ['e-canal', 'canal']].forEach(function (x) { $(x[0]).addEventListener('change', function (e) { es[x[1]] = e.target.value; tableEnt(); }); });
   $('e-q').addEventListener('input', function (e) { es.q = e.target.value; tableEnt(); });
-  $('e-reset').addEventListener('click', function () { es = { res: '__mal', fecha: '', canal: '', q: '' }; $('e-res').value = '__mal'; $('e-fecha').value = ''; $('e-canal').value = ''; $('e-q').value = ''; tableEnt(); });
+  $('e-reset').addEventListener('click', function () { es = { res: '__mal', fecha: '', fcarga: '', camion: '', canal: '', q: '' }; $('e-res').value = '__mal'; $('e-fcarga').value = ''; $('e-camion').value = ''; $('e-fecha').value = ''; $('e-canal').value = ''; $('e-q').value = ''; tableEnt(); });
 
   // ---- pestañas ----
   var tabs = Array.prototype.slice.call(document.querySelectorAll('[role=tab]'));
