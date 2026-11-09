@@ -107,6 +107,7 @@
         <thead><tr>
           <th data-k="pedido"><button type="button">Pedido</button></th>
           <th data-k="cargado" aria-sort="descending"><button type="button">Cargado</button></th>
+          <th data-k="hora_recibido"><button type="button">Hora recibido</button></th>
           <th data-k="canal"><button type="button">Canal</button></th>
           <th data-k="nombre"><button type="button">Cliente</button></th>
           <th data-k="dia_cliente"><button type="button">Día del cliente</button></th>
@@ -130,6 +131,7 @@
     <dl>
       <dt>Esta página</dt><dd>Copia de solo lectura del tablero Pedidos PepsiCo. Se actualiza cada hora, de 7 a 18, de lunes a sábado. Muestra los últimos días por fecha de carga.</dd>
       <dt>Pedido PepsiCo</dt><dd>Venta tipo VEN de Gescom con al menos un artículo del proveedor 100 (Pepsico de Argentina). No cuentan envases, pallets ni exhibidores. Bultos e importe son solo de los artículos PepsiCo.</dd>
+      <dt>Cargado y Hora recibido</dt><dd>Día y hora en que el pedido entró a Gescom (su fecha de pedido). Ordenar por Hora recibido compara solo la hora, sin el día.</dd>
       <dt>Canal</dt><dd>AXUM es la preventa del vendedor, MiNegocio es la app del cliente y Gescom es un pedido cargado a mano en el sistema.</dd>
       <dt>Camión y chofer</dt><dd>Los del reparto al que está asignado el pedido.</dd>
       <dt>Armado</dt><dd>Órdenes de preparación de Gescom. Armado: el depósito lo marcó preparado. En preparación: tiene orden sin cerrar. Salió en camión: sin orden registrada, pero el reparto ya salió o se rindió. Sin armar: no tiene orden. Sin verificar: se cargó después de la última lectura.</dd>
@@ -233,7 +235,8 @@
 
   function table() {
     var rows = filtered().sort(function (a, b) {
-      var va = a[st.sort], vb = b[st.sort];
+      function val(p) { return st.sort === 'hora_recibido' ? (hora(p.cargado) || null) : p[st.sort]; }
+      var va = val(a), vb = val(b);
       if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;
       return (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'es', { numeric: true })) * st.dir;
     });
@@ -244,7 +247,8 @@
     rows.forEach(function (p) {
       var tr = document.createElement('tr');
       td(tr, String(p.pedido), 'nw');
-      td(tr, dia(p.cargado) + ' ' + hora(p.cargado), 'nw');
+      td(tr, dia(p.cargado), 'nw');
+      td(tr, hora(p.cargado), 'nw');
       td(tr, canal(p.canal), 'nw');
       var c = td(tr, p.nombre || p.cliente);
       var s = document.createElement('div'); s.className = 'mut'; s.textContent = '#' + p.cliente + (p.localidad ? ' · ' + p.localidad : ''); c.appendChild(s);
