@@ -410,7 +410,7 @@
       td(tr, p.fecha_correcta ? dia(p.fecha_correcta) : '—', 'nw');
       td(tr, p.entrega ? dia(p.entrega) : '—', 'nw');
       var d = p.dif_dias;
-      td(tr, d == null ? '' : d === 0 ? '0' : (d > 0 ? '+' + d + ' días' : d + ' días'), 'num nw ' + (d > 0 ? 'd-mal' : d < 0 ? 'd-adel' : ''));
+      td(tr, d == null ? '' : d === 0 ? '0' : (d > 0 ? '+' : '') + d + (Math.abs(d) === 1 ? ' día' : ' días'), 'num nw ' + (d > 0 ? 'd-mal' : d < 0 ? 'd-adel' : ''));
       td(tr, p.camion ? String(p.camion) : 'Sin asignar', p.camion ? 'nw' : 'nw mut');
       td(tr, p.fecha_reparto ? dia(p.fecha_reparto) : '', 'nw hn');
       var e = document.createElement('td'), sp = document.createElement('span'); sp.className = 'pill ' + (CLS[p.res_entrega] || 's-mut'); sp.textContent = p.res_entrega; e.appendChild(sp); tr.appendChild(e);
