@@ -247,7 +247,7 @@
     rows.forEach(function (p) {
       var tr = document.createElement('tr');
       td(tr, String(p.pedido), 'nw');
-      td(tr, dia(p.cargado), 'nw');
+      td(tr, dia(p.cargado) + ' ' + hora(p.cargado), 'nw');
       td(tr, hora(p.cargado), 'nw');
       td(tr, canal(p.canal), 'nw');
       var c = td(tr, p.nombre || p.cliente);
