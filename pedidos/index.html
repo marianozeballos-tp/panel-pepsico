@@ -58,6 +58,12 @@
   details dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
   details dt { color: var(--fg); font-weight: 600; } details dd { margin: 0; }
   .err { color: var(--bad); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); padding: 8px 14px; margin-bottom: -1px; font-size: 14px; }
+  .tabs button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--fg); font-weight: 600; }
+  .panel { display: grid; gap: 20px; min-width: 0; }
+  .panel[hidden] { display: none; }
+  .d-mal { color: var(--bad); font-weight: 600; } .d-adel { color: var(--warn); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -68,6 +74,12 @@
     <p class="note" id="stamp"></p>
   </header>
 
+  <div class="tabs" role="tablist" aria-label="Vistas">
+    <button type="button" role="tab" id="tb-ped" aria-controls="tab-pedidos" aria-selected="true">Pedidos</button>
+    <button type="button" role="tab" id="tb-ent" aria-controls="tab-entrega" aria-selected="false" tabindex="-1">Entrega en tiempo y forma</button>
+  </div>
+
+  <div class="panel" id="tab-pedidos" role="tabpanel" aria-labelledby="tb-ped">
   <section class="tiles" aria-label="Resumen">
     <div class="tile"><span class="l">Pedidos del período</span><span class="n" id="k-ped">—</span><span class="s">Por fecha de carga</span></div>
     <div class="tile"><span class="l">Cargados el último día</span><span class="n" id="k-ult">—</span><span class="s" id="k-ultd">—</span></div>
@@ -125,6 +137,49 @@
       </table>
     </div>
   </section>
+  </div>
+
+  <div class="panel" id="tab-entrega" role="tabpanel" aria-labelledby="tb-ent" hidden>
+    <p class="take" id="e-take">—</p>
+    <section class="tiles" aria-label="Resumen de entregas">
+      <div class="tile ok"><span class="l">En fecha</span><span class="n" id="ek-ok">—</span><span class="s" id="ek-pct">—</span></div>
+      <div class="tile bad"><span class="l">Atrasados</span><span class="n" id="ek-atr">—</span><span class="s">Entrega después de su día</span></div>
+      <div class="tile warn"><span class="l">Adelantados</span><span class="n" id="ek-adel">—</span><span class="s">Entrega antes de su día</span></div>
+      <div class="tile bad"><span class="l">Camión en otra fecha</span><span class="n" id="ek-otra">—</span><span class="s">El reparto no sale el día de la entrega</span></div>
+      <div class="tile"><span class="l">Sin control posible</span><span class="n" id="ek-sin">—</span><span class="s">Cliente sin días o pedido sin entrega</span></div>
+    </section>
+    <section class="card">
+      <h2>Control de entrega por pedido</h2>
+      <p class="note">Fecha correcta = el primer día de entrega del cliente desde que cargó el pedido más su demora. Su día de entrega es el día de visita más la demora (1 día casi siempre); si cae sábado o domingo, pasa al lunes.</p>
+      <div class="filters">
+        <label>Resultado <select id="e-res"><option value="__mal">Todo lo que no está en fecha</option><option value="">Todos</option><option>En fecha</option><option>Atrasado</option><option>Adelantado</option><option>Camión en otra fecha</option><option>Sin fecha de entrega</option><option>Cliente sin días</option></select></label>
+        <label>Entrega <select id="e-fecha"><option value="">Todas</option></select></label>
+        <label>Canal <select id="e-canal"><option value="">Todos</option><option value="AXUM">AXUM (preventa)</option><option value="MiNegocio">MiNegocio (app del cliente)</option><option value="gcw">Cargado en Gescom</option></select></label>
+        <label>Buscar <input type="search" id="e-q" placeholder="Cliente, pedido, chofer…"></label>
+        <button type="button" id="e-reset">Limpiar filtros</button>
+      </div>
+      <p class="note"><span id="e-count">—</span> pedidos en la tabla</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th scope="col"><span style="display:block;padding:6px 8px">Pedido</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Cargado</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Canal</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Cliente</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Visita</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Días de entrega</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Fecha correcta</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Entrega cargada</span></th>
+            <th scope="col" class="num"><span style="display:block;padding:6px 8px">Diferencia</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Camión</span></th>
+            <th scope="col" class="hn"><span style="display:block;padding:6px 8px">Sale el</span></th>
+            <th scope="col"><span style="display:block;padding:6px 8px">Resultado</span></th>
+          </tr></thead>
+          <tbody id="e-tb"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
   <details>
     <summary>Qué cuenta y de dónde sale cada dato</summary>
@@ -132,6 +187,7 @@
       <dt>Esta página</dt><dd>Copia de solo lectura del tablero Pedidos PepsiCo. Se actualiza cada hora, de 7 a 18, de lunes a sábado. Muestra los últimos días por fecha de carga.</dd>
       <dt>Pedido PepsiCo</dt><dd>Venta tipo VEN de Gescom con al menos un artículo del proveedor 100 (Pepsico de Argentina). No cuentan envases, pallets ni exhibidores. Bultos e importe son solo de los artículos PepsiCo.</dd>
       <dt>Cargado y Hora recibido</dt><dd>Día y hora en que el pedido entró a Gescom (su fecha de pedido). Ordenar por Hora recibido compara solo la hora, sin el día.</dd>
+      <dt>Entrega en tiempo y forma</dt><dd>Controla cada pedido contra los días que el cliente tiene cargados en Gescom. Su día de entrega es el día de visita de su ruta de preventa más su demora de entrega (1 día salvo excepciones); si cae sábado o domingo, pasa al lunes. La fecha correcta es el primer día de entrega del cliente a partir del día de carga más la demora. En fecha: la entrega cargada coincide y el camión, si ya tiene, sale ese día. Atrasado o Adelantado: la entrega cargada es posterior o anterior a la correcta. Camión en otra fecha: la entrega está bien pero el reparto asignado sale otro día. No tiene en cuenta feriados ni los pocos repartos de sábado.</dd>
       <dt>Canal</dt><dd>AXUM es la preventa del vendedor, MiNegocio es la app del cliente y Gescom es un pedido cargado a mano en el sistema.</dd>
       <dt>Camión y chofer</dt><dd>Los del reparto al que está asignado el pedido.</dd>
       <dt>Armado</dt><dd>Órdenes de preparación de Gescom. Armado: el depósito lo marcó preparado. En preparación: tiene orden sin cerrar. Salió en camión: sin orden registrada, pero el reparto ya salió o se rindió. Sin armar: no tiene orden. Sin verificar: se cargó después de la última lectura.</dd>
@@ -291,10 +347,98 @@
       table();
     });
   });
+  // ---- entrega en tiempo y forma ----
+  var DOW = { Dom: 0, Lun: 1, Mar: 2, 'Mié': 3, Jue: 4, Vie: 5, 'Sáb': 6 }, NOM = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  function fd(s) { return new Date(s.slice(0, 10) + 'T12:00:00'); }
+  function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function addD(s, n) { var d = fd(s); d.setDate(d.getDate() + n); return iso(d); }
+  function difD(a, b) { return Math.round((fd(a) - fd(b)) / 86400000); }
+  var es = { res: '__mal', fecha: '', canal: '', q: '' };
+  var ORD = { 'Atrasado': 0, 'Camión en otra fecha': 1, 'Adelantado': 2, 'Sin fecha de entrega': 3, 'Cliente sin días': 4, 'En fecha': 5 };
+  var CLS = { 'En fecha': 's-ok', 'Atrasado': 's-bad', 'Adelantado': 's-warn', 'Camión en otra fecha': 's-bad' };
+  function calcEntrega() {
+    D.pedidos.forEach(function (p) {
+      var vis = String(p.dia_cliente || '').split(' ').map(function (s) { return DOW[s]; }).filter(function (x) { return x != null; });
+      var dem = p.demora == null || p.demora === '' ? 1 : Number(p.demora);
+      var dias = []; vis.forEach(function (v) { var w = (v + dem) % 7; if (w === 6 || w === 0) w = 1; if (dias.indexOf(w) < 0) dias.push(w); }); dias.sort();
+      var corr = null, dif = null, res;
+      if (!dias.length) res = 'Cliente sin días';
+      else {
+        var f = addD(p.cargado, dem);
+        for (var i = 0; i < 7 && dias.indexOf(fd(f).getDay()) < 0; i++) f = addD(f, 1);
+        corr = f;
+        if (!p.entrega) res = 'Sin fecha de entrega';
+        else {
+          dif = difD(p.entrega, corr);
+          if (dif > 0) res = 'Atrasado'; else if (dif < 0) res = 'Adelantado';
+          else if (p.fecha_reparto && p.fecha_reparto.slice(0, 10) !== p.entrega.slice(0, 10)) res = 'Camión en otra fecha';
+          else res = 'En fecha';
+        }
+      }
+      p.dias_entrega = dias.map(function (w) { return NOM[w]; }).join(' '); p.fecha_correcta = corr; p.dif_dias = dif; p.res_entrega = res;
+    });
+    var P = D.pedidos, n = function (r) { return P.filter(function (p) { return p.res_entrega === r; }).length; };
+    var sin = n('Cliente sin días') + n('Sin fecha de entrega'), tot = P.length - sin, ok = n('En fecha');
+    txt($('ek-ok'), nf.format(ok)); txt($('ek-pct'), (tot ? pf.format(ok / tot) : '—') + ' de los pedidos');
+    txt($('ek-atr'), nf.format(n('Atrasado'))); txt($('ek-adel'), nf.format(n('Adelantado'))); txt($('ek-otra'), nf.format(n('Camión en otra fecha'))); txt($('ek-sin'), nf.format(sin));
+    txt($('e-take'), 'De ' + nf.format(tot) + ' pedidos con día de entrega definido, ' + nf.format(ok) + ' están para entregar en su fecha correcta. ' + nf.format(n('Atrasado')) + ' tienen una entrega más tarde que la que le corresponde al cliente, ' + nf.format(n('Adelantado')) + ' una más temprana y ' + nf.format(n('Camión en otra fecha')) + ' están en un camión de otra fecha.');
+    var fe = Array.from(new Set(P.map(function (p) { return String(p.entrega || '').slice(0, 10); }).filter(Boolean))).sort();
+    fe.forEach(function (d) { $('e-fecha').appendChild(new Option(dia(d), d)); });
+  }
+  function tableEnt() {
+    var q = es.q.trim().toLowerCase();
+    var rows = D.pedidos.filter(function (r) {
+      if (es.res === '__mal' && r.res_entrega === 'En fecha') return false;
+      if (es.res && es.res !== '__mal' && r.res_entrega !== es.res) return false;
+      if (es.fecha && String(r.entrega || '').slice(0, 10) !== es.fecha) return false;
+      if (es.canal && r.canal !== es.canal) return false;
+      if (q && [r.pedido, r.canal, r.cliente, r.nombre, r.localidad, r.chofer, r.camion].join(' ').toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    }).sort(function (a, b) { return (ORD[a.res_entrega] - ORD[b.res_entrega]) || String(a.entrega || '').localeCompare(String(b.entrega || '')) || String(a.cargado).localeCompare(String(b.cargado)); });
+    txt($('e-count'), nf.format(rows.length));
+    var frag = document.createDocumentFragment();
+    function td(tr, t, c) { var e = document.createElement('td'); if (c) e.className = c; e.textContent = t; tr.appendChild(e); return e; }
+    rows.forEach(function (p) {
+      var tr = document.createElement('tr');
+      td(tr, String(p.pedido), 'nw');
+      td(tr, dia(p.cargado) + ' ' + hora(p.cargado), 'nw');
+      td(tr, canal(p.canal), 'nw');
+      var c = td(tr, p.nombre || p.cliente);
+      var s = document.createElement('div'); s.className = 'mut'; s.textContent = '#' + p.cliente + (p.localidad ? ' · ' + p.localidad : ''); c.appendChild(s);
+      td(tr, p.dia_cliente || '—', 'nw');
+      td(tr, p.dias_entrega || '—', 'nw');
+      td(tr, p.fecha_correcta ? dia(p.fecha_correcta) : '—', 'nw');
+      td(tr, p.entrega ? dia(p.entrega) : '—', 'nw');
+      var d = p.dif_dias;
+      td(tr, d == null ? '' : d === 0 ? '0' : (d > 0 ? '+' + d + ' días' : d + ' días'), 'num nw ' + (d > 0 ? 'd-mal' : d < 0 ? 'd-adel' : ''));
+      td(tr, p.camion ? String(p.camion) : 'Sin asignar', p.camion ? 'nw' : 'nw mut');
+      td(tr, p.fecha_reparto ? dia(p.fecha_reparto) : '', 'nw hn');
+      var e = document.createElement('td'), sp = document.createElement('span'); sp.className = 'pill ' + (CLS[p.res_entrega] || 's-mut'); sp.textContent = p.res_entrega; e.appendChild(sp); tr.appendChild(e);
+      frag.appendChild(tr);
+    });
+    $('e-tb').replaceChildren(frag);
+  }
+  [['e-res', 'res'], ['e-fecha', 'fecha'], ['e-canal', 'canal']].forEach(function (x) { $(x[0]).addEventListener('change', function (e) { es[x[1]] = e.target.value; tableEnt(); }); });
+  $('e-q').addEventListener('input', function (e) { es.q = e.target.value; tableEnt(); });
+  $('e-reset').addEventListener('click', function () { es = { res: '__mal', fecha: '', canal: '', q: '' }; $('e-res').value = '__mal'; $('e-fecha').value = ''; $('e-canal').value = ''; $('e-q').value = ''; tableEnt(); });
+
+  // ---- pestañas ----
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role=tab]'));
+  function showTab(id) {
+    tabs.forEach(function (t) { var on = t.getAttribute('aria-controls') === id; t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1; $(t.getAttribute('aria-controls')).hidden = !on; });
+    try { localStorage.setItem('pp-tab', id); } catch (e) {}
+    if (id === 'tab-pedidos' && D) chart();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { showTab(t.getAttribute('aria-controls')); });
+    t.addEventListener('keydown', function (ev) { if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return; var nx = tabs[(i + (ev.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; nx.focus(); showTab(nx.getAttribute('aria-controls')); });
+  });
+  (function () { var s = null; try { s = localStorage.getItem('pp-tab'); } catch (e) {} showTab(s && $(s) ? s : 'tab-pedidos'); })();
+
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (D) chart(); }, 150); });
 
   fetch('datos.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function (j) { D = j; summary(); fillSelects(); chart(); table(); })
+    .then(function (j) { D = j; summary(); fillSelects(); chart(); table(); calcEntrega(); tableEnt(); })
     .catch(function () { var t = $('take'); t.className = 'take err'; t.textContent = 'No se pudieron cargar los datos. Recargá la página en unos minutos.'; });
 })();
 </script>
