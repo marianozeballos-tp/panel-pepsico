@@ -189,7 +189,7 @@
   <details>
     <summary>Qué cuenta y de dónde sale cada dato</summary>
     <dl>
-      <dt>Esta página</dt><dd>Copia de solo lectura del tablero Pedidos PepsiCo. Se actualiza a las 12, 15 y 20 h, de lunes a sábado. Muestra los últimos días por fecha de carga.</dd>
+      <dt>Esta página</dt><dd>Copia de solo lectura del tablero Pedidos PepsiCo. Se actualiza cada hora, de 7 a 18, de lunes a sábado. Muestra los últimos días por fecha de carga.</dd>
       <dt>Pedido PepsiCo</dt><dd>Venta tipo VEN de Gescom con al menos un artículo del proveedor 100 (Pepsico de Argentina). No cuentan envases, pallets ni exhibidores. Bultos e importe son solo de los artículos PepsiCo.</dd>
       <dt>Cargado y Hora recibido</dt><dd>Día y hora en que el pedido entró a Gescom (su fecha de pedido). Ordenar por Hora recibido compara solo la hora, sin el día.</dd>
       <dt>Entrega en tiempo y forma</dt><dd>Controla cada pedido contra los días que el cliente tiene cargados en Gescom. Su día de entrega es el día de visita de su ruta de preventa más su demora de entrega (1 día salvo excepciones); si cae sábado o domingo, pasa al lunes. La fecha correcta es el primer día de entrega del cliente a partir del día de carga más la demora. En fecha: la entrega cargada coincide y el camión, si ya tiene, sale ese día. Atrasado o Adelantado: la entrega cargada es posterior o anterior a la correcta. Camión en otra fecha: la entrega está bien pero el reparto asignado sale otro día. No tiene en cuenta feriados ni los pocos repartos de sábado.</dd>
@@ -237,7 +237,7 @@
     txt($('k-dig'), nf.format(nod));
     txt($('k-digs'), nf.format(n(enDigip)) + ' sí figuran en Digip');
     txt($('take'), (D.dias == 1 ? 'Hoy' : 'En los últimos ' + D.dias + ' días') + ' se cargaron ' + nf.format(P.length) + ' pedidos con productos PepsiCo. ' + nf.format(sin) + ' figuran sin armar, ' + nf.format(cam) + ' todavía no tienen camión y ' + nf.format(nod) + ' tienen camión pero no figuran en Digip.');
-    txt($('stamp'), 'Actualizado ' + dia(D.generado) + ' ' + hora(D.generado) + ' · armado leído de Gescom ' + dia(D.armado_leido) + ' ' + hora(D.armado_leido) + ' · Digip ' + dia(D.digip_leido) + ' ' + hora(D.digip_leido) + '. Copia de solo lectura, se actualiza a las 12, 15 y 20 h.');
+    txt($('stamp'), 'Actualizado ' + dia(D.generado) + ' ' + hora(D.generado) + ' · armado leído de Gescom ' + dia(D.armado_leido) + ' ' + hora(D.armado_leido) + ' · Digip ' + dia(D.digip_leido) + ' ' + hora(D.digip_leido) + '. Copia de solo lectura, se actualiza cada hora.');
   }
 
   function chart() {
