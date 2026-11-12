@@ -10,6 +10,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# La tarea baja después objetivos y activos a base\ con ArtifactData out_dir, que no pisa archivos
+# existentes: se vacía acá para que cada corrida los baje de nuevo.
+$base = Join-Path $PSScriptRoot 'base'
+if (Test-Path $base) { Remove-Item $base -Recurse -Force }
+
 $gescom = Join-Path $env:USERPROFILE '.claude\skills\gescom\gescom.ps1'
 $tmp = Join-Path $env:TEMP 'recibido-pepsico'
 New-Item -ItemType Directory -Force $tmp | Out-Null
