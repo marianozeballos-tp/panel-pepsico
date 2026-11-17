@@ -50,6 +50,21 @@ foreach ($col in 'recibido', 'activos', 'objetivos') {
   }
   [IO.File]::WriteAllText((Join-Path $datos "$col.json"), (ConvertTo-Json $o -Depth 6 -Compress), $enc)
 }
+# pendientes: camiones pedidos que todavia no llegaron, base\pendientes\<id>.json (id del documento).
+# Se publican solo los que no tienen marca de entregado. Si la tarea no los bajo, queda la copia anterior.
+$dir = Join-Path $base 'pendientes'
+if (Test-Path $dir) {
+  $o = [ordered]@{}
+  Get-ChildItem $dir -Filter '*.json' | Sort-Object Name | ForEach-Object {
+    $d = & $leer $_.FullName
+    if ($d.PSObject.Properties['entregado'] -and $d.entregado) { return }
+    if ($d.PSObject.Properties['por']) { $d.PSObject.Properties.Remove('por') }
+    $o[$_.BaseName] = $d
+  }
+  [IO.File]::WriteAllText((Join-Path $datos 'pendientes.json'), (ConvertTo-Json $o -Depth 6 -Compress), $enc)
+} elseif (-not (Test-Path (Join-Path $datos 'pendientes.json'))) {
+  [IO.File]::WriteAllText((Join-Path $datos 'pendientes.json'), '{}', $enc)
+}
 Copy-Item (Join-Path $docs 'pedido.json') (Join-Path $datos 'pedido.json') -Force
 
 # Página: el panel de claude.ai con el reemplazo de sólo lectura de window.claude.
