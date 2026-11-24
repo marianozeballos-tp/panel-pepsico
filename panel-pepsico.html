@@ -50,7 +50,7 @@
   .lead b { font-weight: 600; }
   .note { font-size: .82rem; color: var(--muted); margin: 0; max-width: 78ch; }
   .field { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
-  select, input[type=number], input[type=search] { font: inherit; font-size: 1rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; }
+  select, input[type=number], input[type=search], input[type=text], input[type=date] { font: inherit; font-size: 1rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; }
   input[type=number] { width: 6.5rem; font-variant-numeric: tabular-nums; }
   select:focus-visible, input:focus-visible, button:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .check { display: flex; gap: 6px; align-items: center; padding-block: 6px; cursor: pointer; }
@@ -122,6 +122,7 @@
     <button class="tab" id="tab-pedido" type="button" role="tab" data-v="pedido" aria-selected="true" aria-controls="pedido">Pedido sugerido</button>
     <button class="tab" id="tab-objetivo" type="button" role="tab" data-v="objetivo" aria-selected="false" aria-controls="objetivo">Objetivo de compra</button>
     <button class="tab" id="tab-disponibilidad" type="button" role="tab" data-v="disponibilidad" aria-selected="false" aria-controls="disponibilidad">Disponibilidad</button>
+    <button class="tab" id="tab-negados" type="button" role="tab" data-v="negados" aria-selected="false" aria-controls="negados">Negados</button>
   </nav>
 
   <!-- ===================== PEDIDO SUGERIDO ===================== -->
@@ -337,6 +338,50 @@
 
     <p class="note">Disponibilidad = artículos activos del mes que tienen al menos un remito de ingreso de PepsiCo (REMI-I) con fecha dentro del mes ÷ artículos activos de la lista. Si un remito se cargó en Gescom más de 7 días después de su fecha, cuenta en el mes de la carga. La lista sale del Excel que manda PepsiCo: columna Material SAP (el código de Gescom) y Vigencia = 1.</p>
   </div>
+
+  <!-- ===================== NEGADOS ===================== -->
+  <div class="view" id="negados" role="tabpanel" aria-labelledby="tab-negados" hidden>
+    <section class="card" aria-label="Cargar artículo negado" id="n-carga">
+      <h2>Cargar artículo negado</h2>
+      <p class="note">Artículos que se le pidieron a PepsiCo y no los mandaron por un problema de ellos (falta de producto, planta, logística).</p>
+      <div class="controls">
+        <label class="field" style="min-width:min(100%,22rem)">Artículo (código o nombre)
+          <input id="n-art" type="search" list="n-lista" autocomplete="off" placeholder="Ej. 300060192 o Doritos">
+          <datalist id="n-lista"></datalist>
+        </label>
+        <label class="field">Fecha del negado
+          <input id="n-fecha" type="date">
+        </label>
+        <label class="field">Bultos negados (opcional)
+          <input id="n-bultos" type="number" min="0" max="100000" step="1" inputmode="numeric">
+        </label>
+        <label class="field" style="flex:1;min-width:min(100%,12rem)">Motivo (opcional)
+          <input id="n-nota" type="text" maxlength="200" placeholder="Ej. sin producción">
+        </label>
+        <button class="btn" id="n-guardar" type="button">Guardar</button>
+      </div>
+      <span class="status" id="n-estado" role="status"></span>
+    </section>
+
+    <p class="lead" id="n-lead">Cargando artículos negados…</p>
+
+    <section class="card">
+      <div class="row">
+        <h2>Artículos negados del mes</h2>
+        <label class="field">Mes
+          <select id="n-mes" aria-label="Mes"></select>
+        </label>
+      </div>
+      <div class="tbox">
+        <table>
+          <thead><tr><th class="l"><span>Fecha</span></th><th class="l"><span>Código</span></th><th class="l"><span>Artículo</span></th><th><span>Bultos</span></th><th class="l hide-sm"><span>Motivo</span></th><th class="l hide-sm"><span>Cargado</span></th><th><span></span></th></tr></thead>
+          <tbody id="n-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="note">Los negados del mes también aparecen en la pestaña Disponibilidad, al lado de los artículos que faltan comprar, para justificar ante PepsiCo los que no se pudieron comprar.</p>
+  </div>
 </div>
 
 <script>
@@ -370,7 +415,7 @@
     tabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.v === v)));
     document.querySelectorAll('.view').forEach((p) => { p.hidden = p.id !== v; });
     try { history.replaceState(null, '', '#' + v); } catch (e) { /* sin historial */ }
-    if (v === 'pedido') pedidoRender(); else if (v === 'objetivo') objRender(); else dispRender();
+    if (v === 'pedido') pedidoRender(); else if (v === 'objetivo') objRender(); else if (v === 'disponibilidad') dispRender(); else negRender();
   }
   tabs.forEach((b) => b.addEventListener('click', () => mostrar(b.dataset.v)));
 
@@ -871,6 +916,95 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
   $('o-obj').addEventListener('input', () => { delete $('o-estado').dataset.sticky; });
 
   /* ===================== DISPONIBILIDAD ===================== */
+  /* ===================== NEGADOS (artículos pedidos que PepsiCo no mandó) ===================== */
+  const N = { docs: {}, cargado: false, mes: mesHoy, guardando: false };
+  const hoyISO = hoyAR.toISOString().slice(0, 10);
+  function catalogoArts() {
+    const m = new Map();
+    Object.values(D.activos).forEach((a) => (a && Array.isArray(a.articulos) ? a.articulos : []).forEach((x) => m.set(String(x.codigo), String(x.descripcion || ''))));
+    (P.rows || []).forEach((r) => m.set(String(r.codigo), String(r.articulo || '')));
+    return m;
+  }
+  function negadosDe(mes) {
+    return Object.entries(N.docs).filter(([, d]) => d && String(d.fecha || '').slice(0, 7) === mes)
+      .sort((a, b) => String(b[1].fecha).localeCompare(String(a[1].fecha)) || String(b[1].cargado).localeCompare(String(a[1].cargado)));
+  }
+  function negPorCodigo(mes) { const o = {}; negadosDe(mes).forEach(([, d]) => { (o[String(d.codigo)] = o[String(d.codigo)] || []).push(d); }); return o; }
+  function buscarArt(v) {
+    const cat = catalogoArts(), t = String(v || '').trim();
+    const cod = (t.match(/\d{6,}/) || [])[0];
+    if (cod) return cat.has(cod) ? { codigo: cod, articulo: cat.get(cod) } : null;
+    if (t.length < 3) return null;
+    const q = t.toLowerCase(), hits = [...cat.entries()].filter(([, d]) => d.toLowerCase().includes(q));
+    return hits.length === 1 ? { codigo: hits[0][0], articulo: hits[0][1] } : null;
+  }
+
+  function negRender() {
+    const cat = catalogoArts();
+    $('n-lista').replaceChildren(...[...cat.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([c, d]) => { const o = document.createElement('option'); o.value = c + ' · ' + d; return o; }));
+    if (!$('n-fecha').value) $('n-fecha').value = hoyISO;
+    $('n-fecha').max = hoyISO;
+    $('n-carga').hidden = O.puedeEditar === false;
+    const meses = [...new Set([mesHoy, N.mes, ...Object.values(N.docs).map((d) => String(d && d.fecha || '').slice(0, 7)).filter((x) => /^\d{4}-\d{2}$/.test(x))])].sort().reverse();
+    const sel = $('n-mes'); sel.replaceChildren(...meses.map((x) => new Option(nombreMes(x), x))); sel.value = N.mes;
+    const lista = negadosDe(N.mes);
+    const arts = new Set(lista.map(([, d]) => String(d.codigo)));
+    const bul = lista.reduce((s, [, d]) => s + (Number(d.bultos) || 0), 0);
+    $('n-lead').textContent = !N.cargado ? 'Cargando artículos negados…'
+      : lista.length ? `En ${nombreMes(N.mes)} PepsiCo negó ${arts.size} ${arts.size === 1 ? 'artículo' : 'artículos'} (${lista.length} ${lista.length === 1 ? 'carga' : 'cargas'}${bul ? ', ' + n0.format(bul) + ' bultos' : ''}).`
+      : `No hay artículos negados cargados en ${nombreMes(N.mes)}.`;
+    const tb = $('n-body');
+    if (!lista.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 7; td.className = 'l empty'; td.textContent = N.cargado ? 'Sin artículos negados en este mes.' : 'Cargando…'; tr.appendChild(td); tb.replaceChildren(tr); return; }
+    tb.replaceChildren(...lista.map(([id, d]) => {
+      const tr = fila([[ddmmaa(d.fecha), 'l'], [String(d.codigo), 'l m'], [d.articulo || cat.get(String(d.codigo)) || '', 'l art'], [d.bultos == null || d.bultos === '' ? '—' : n0.format(d.bultos), ''], [d.nota || '', 'l hide-sm m'], [d.cargado ? fechaHora(d.cargado) : '—', 'l hide-sm m']]);
+      const td = document.createElement('td');
+      if (O.puedeEditar !== false) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = 'Borrar';
+        let armado = false;
+        b.addEventListener('click', async () => {
+          if (!armado) { armado = true; b.textContent = '¿Borrar?'; setTimeout(() => { armado = false; b.textContent = 'Borrar'; }, 4000); return; }
+          if (!O.db) return;
+          b.disabled = true;
+          try { await O.db.doc('negados/' + id).delete(); }
+          catch (e) { b.disabled = false; const est = $('n-estado'); est.className = 'status bad'; est.textContent = e && e.code === 'invalid_argument' ? 'No tenés permiso para borrar negados. Pedile al dueño del panel acceso de editor.' : 'No se pudo borrar. Probá de nuevo en un momento.'; }
+        });
+        td.appendChild(b);
+      }
+      tr.appendChild(td);
+      return tr;
+    }));
+  }
+
+  $('n-mes').addEventListener('change', (ev) => { N.mes = ev.target.value; negRender(); });
+  $('n-guardar').addEventListener('click', async () => {
+    const est = $('n-estado');
+    const art = buscarArt($('n-art').value);
+    const fecha = $('n-fecha').value;
+    const bs = $('n-bultos').value.trim();
+    const bultos = bs === '' ? null : Number(bs);
+    const nota = $('n-nota').value.trim().slice(0, 200);
+    const mal = (t) => { est.className = 'status bad'; est.textContent = t; };
+    if (!art) return mal('Elegí un artículo de la lista (código o nombre de un artículo de PepsiCo).');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return mal('Poné la fecha del negado.');
+    if (fecha > hoyISO) return mal('La fecha del negado no puede ser futura.');
+    if (bultos != null && !(Number.isInteger(bultos) && bultos >= 0)) return mal('Los bultos tienen que ser un número entero.');
+    if (!O.db || N.guardando) return;
+    N.guardando = true; $('n-guardar').disabled = true;
+    try {
+      const user = await claude.use('user');
+      const uid = user ? await user.id() : null;
+      await O.db.doc('negados/n' + Date.now().toString(36)).set({ codigo: art.codigo, articulo: art.articulo, fecha, bultos, nota, cargado: new Date().toISOString(), por: uid });
+      est.className = 'status ok'; est.textContent = 'Guardado: ' + art.articulo + ', negado el ' + ddmmaa(fecha) + '.';
+      $('n-art').value = ''; $('n-bultos').value = ''; $('n-nota').value = '';
+      N.mes = fecha.slice(0, 7);
+      negRender();
+      $('n-art').focus();
+    } catch (e) {
+      mal(e && e.code === 'invalid_argument' ? 'No tenés permiso para cargar negados. Pedile al dueño del panel acceso de editor.' : 'No se pudo guardar. Probá de nuevo en un momento.');
+    } finally { N.guardando = false; $('n-guardar').disabled = false; }
+  });
+  $('n-art').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); $('n-guardar').click(); } });
+
   const D = { activos: {}, cargado: false, filtro: 'Faltan', q: '', pendiente: null };
   const D_FILTROS = ['Faltan', 'Comprados', 'Todos'];
 
@@ -881,12 +1015,14 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
     (rec && Array.isArray(rec.articulos) ? rec.articulos : []).forEach((a) => { porCodigo[String(a.codigo)] = a; });
     const stock = {};
     (P.rows || []).forEach((r) => { stock[String(r.codigo)] = r; });
+    const neg = negPorCodigo(m);
     const items = (lista || []).map((a) => {
       const c = String(a.codigo), comp = porCodigo[c] || null, s = stock[c] || null;
-      return { ...a, codigo: c, comprado: !!comp, compra: comp, ped: s };
+      return { ...a, codigo: c, comprado: !!comp, compra: comp, ped: s, negado: neg[c] || null };
     });
     const si = items.filter((x) => x.comprado).length;
-    return { lista, items, si, no: items.length - si, pct: items.length ? si / items.length : null };
+    const negados = items.filter((x) => !x.comprado && x.negado).length;
+    return { lista, items, si, no: items.length - si, negados, pct: items.length ? si / items.length : null };
   }
 
   function dispRender() {
@@ -921,7 +1057,7 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
       $('dk-no-box').classList.toggle('is-bad', R.no > 0);
       $('d-lead').textContent = R.no === 0
         ? `En ${nombreMes(m)} ya se compraron los ${R.items.length} artículos activos: disponibilidad del 100%.`
-        : `En ${nombreMes(m)} se compraron ${R.si} de ${R.items.length} artículos activos (${pct.format(R.pct)}). Faltan comprar ${R.no} para llegar al 100%.`;
+        : `En ${nombreMes(m)} se compraron ${R.si} de ${R.items.length} artículos activos (${pct.format(R.pct)}). Faltan comprar ${R.no} para llegar al 100%` + (R.negados ? `; ${R.negados} de ellos ${R.negados === 1 ? 'fue negado' : 'fueron negados'} por PepsiCo.` : '.');
 
       const bdus = {};
       R.items.forEach((x) => { const k = x.bdu || 'Sin BDU'; bdus[k] = bdus[k] || { n: 0, si: 0 }; bdus[k].n++; if (x.comprado) bdus[k].si++; });
@@ -942,6 +1078,7 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
           const td = (t, c) => { const e = document.createElement('td'); if (c) e.className = c; e.textContent = t; tr.appendChild(e); return e; };
           td(x.codigo, 'l m'); td(x.descripcion, 'l art'); td(x.bdu || '', 'l hide-sm m');
           const est2 = td('', 'l'); const p = document.createElement('span'); p.className = 'pill ' + (x.comprado ? 'si' : 'no'); p.textContent = x.comprado ? 'Comprado' : 'Falta'; est2.appendChild(p);
+          if (x.negado) { const s = document.createElement('span'); s.className = 'tag'; s.textContent = ' · negado ' + x.negado.map((n) => ddmm(n.fecha)).sort().join(', '); s.title = x.negado.map((n) => ddmmaa(n.fecha) + (n.bultos != null && n.bultos !== '' ? ', ' + n0.format(n.bultos) + ' bultos' : '') + (n.nota ? ': ' + n.nota : '')).join('\n'); est2.appendChild(s); }
           td(x.comprado ? ddmm(x.compra.primera) + (x.compra.ultima && x.compra.ultima !== x.compra.primera ? ' al ' + ddmm(x.compra.ultima) : '') : '—', 'l');
           td(x.comprado ? n0.format(x.compra.bultos) : '—');
           td(x.ped ? n0.format(x.ped.stock_hoy) : (P.rows ? '0' : '—'));
@@ -1073,7 +1210,7 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
   /* ---------- Arranque ---------- */
   let mcpListo = false;
   const h = location.hash.slice(1);
-  mostrar(h === 'objetivo' || h === 'disponibilidad' ? h : 'pedido');
+  mostrar(h === 'objetivo' || h === 'disponibilidad' || h === 'negados' ? h : 'pedido');
 
   (async () => {
     mcpNs = await claude.use('mcp');
@@ -1090,6 +1227,7 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
     if (user) O.puedeEditar = await user.canEdit();
     db.collection('objetivos').onSnapshot((snap) => { const o = {}; snap.docs.forEach((d) => { if (d.exists) o[d.id] = d.data(); }); O.objetivos = o; O.cargadoObj = true; objRender(); }, () => { O.cargadoObj = true; objRender(); });
     db.collection('recibido').onSnapshot((snap) => { const o = {}; snap.docs.forEach((d) => { if (d.exists) o[d.id] = d.data(); }); O.recibido = o; O.cargadoRec = true; objRender(); dispRender(); }, () => { O.cargadoRec = true; $('o-lead').textContent = 'No se pudo leer lo recibido.'; $('d-lead').textContent = 'No se pudo leer lo recibido.'; });
+    db.collection('negados').onSnapshot((snap) => { const o = {}; snap.docs.forEach((d) => { if (d.exists) o[d.id] = d.data(); }); N.docs = o; N.cargado = true; if (vista === 'negados') negRender(); dispRender(); }, () => { N.cargado = true; $('n-lead').textContent = 'No se pudo leer la lista de negados.'; });
     db.collection('pendientes').onSnapshot((snap) => { const o = {}; snap.docs.forEach((d) => { if (d.exists) o[d.id] = d.data(); }); C.docs = o; C.cargado = true; recalcular(); }, () => { C.cargado = true; recalcular(); });
     db.collection('activos').onSnapshot((snap) => { const o = {}; snap.docs.forEach((d) => { if (d.exists) o[d.id] = d.data(); }); D.activos = o; D.cargado = true; dispRender(); }, () => { D.cargado = true; $('d-lead').textContent = 'No se pudo leer la lista de artículos activos.'; });
   })();
