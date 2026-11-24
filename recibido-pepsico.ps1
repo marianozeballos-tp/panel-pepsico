@@ -38,6 +38,22 @@ $articulos = @{}
 $compras = @(& $leer "$tmp\compras.json")
 if ($compras.Count -ge 500) { throw "Gescom devolvió 500 compras o más: hace falta paginar" }
 
+# Factura de cada remito. Gescom no los vincula: la factura (FAC-*) se carga uno o dos segundos despues
+# que su remito. Se toma la factura cargada hasta 60 s despues; si no hay, la que tiene exactamente los
+# mismos renglones (articulo y cantidad) y no se uso para otro remito, la de carga mas cercana.
+$firma = { param($x) (($x.items | ForEach-Object { '{0}:{1}' -f $_.codigoItem, [double]$_.cantidad }) | Sort-Object) -join '|' }
+$facturas = @($compras | Where-Object { $_.codigoTipoDeComprobante -like 'FAC*' } | ForEach-Object {
+  [pscustomobject]@{ numero = '{0}-{1}' -f $_.codigoPuntoVenta, $_.numeroComprobante; carga = [datetime]$_.fechaCarga.Substring(0, 19); prov = $_.codigoProveedor; firma = (& $firma $_) }
+})
+$usadas = @{}
+$facturaDe = @{}
+foreach ($c in $compras | Where-Object { $_.codigoTipoDeComprobante -eq 'REMI-I' } | Sort-Object fechaCarga) {
+  $t = [datetime]$c.fechaCarga.Substring(0, 19); $fr = & $firma $c
+  $cand = @($facturas | Where-Object { $_.prov -eq $c.codigoProveedor -and -not $usadas[$_.numero] -and ($_.carga - $t).TotalSeconds -ge 0 -and ($_.carga - $t).TotalSeconds -le 60 } | Sort-Object { ($_.carga - $t).TotalSeconds })
+  if (-not $cand.Count) { $cand = @($facturas | Where-Object { $_.prov -eq $c.codigoProveedor -and -not $usadas[$_.numero] -and $_.firma -eq $fr } | Sort-Object { [math]::Abs(($_.carga - $t).TotalSeconds) }) }
+  if ($cand.Count) { $usadas[$cand[0].numero] = 1; $facturaDe['{0}-{1}' -f $c.codigoPuntoVenta, $c.numeroComprobante] = $cand[0].numero }
+}
+
 $filas = foreach ($c in $compras | Where-Object { $_.codigoTipoDeComprobante -eq 'REMI-I' }) {
   # Fecha del remito = fecha del comprobante. Si se cargo en Gescom mas de 7 dias despues, la fecha
   # del comprobante se toma como error de tipeo y se usa la de carga (pedido del usuario, 24/11/2026:
@@ -55,6 +71,7 @@ $filas = foreach ($c in $compras | Where-Object { $_.codigoTipoDeComprobante -eq
       fecha_carga  = $fCarga
       empresa      = $c.codigoEmpresa
       remito       = '{0}-{1}' -f $c.codigoPuntoVenta, $c.numeroComprobante
+      factura      = $facturaDe['{0}-{1}' -f $c.codigoPuntoVenta, $c.numeroComprobante]
       codigo       = $i.codigoItem
       articulo     = if ($a) { $a.descripcion } else { '' }
       deposito     = $i.codigoDeposito
@@ -80,6 +97,7 @@ foreach ($g in $filas | Group-Object mes) {
     $p = $r.Group[0]
     [pscustomobject][ordered]@{
       remito      = $r.Name
+      factura     = $p.factura
       fecha       = $p.fecha
       fecha_carga = $p.fecha_carga
       bultos      = ($r.Group | Measure-Object bultos -Sum).Sum

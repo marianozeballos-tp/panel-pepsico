@@ -258,7 +258,7 @@
         <h2>Remitos del mes</h2>
         <div class="tbox" style="max-height:420px">
           <table>
-            <thead><tr><th class="l"><span>Fecha</span></th><th class="l"><span>Remito</span></th><th class="l hide-sm"><span>Cargado</span></th><th><span>Bultos</span></th><th><span>Toneladas</span></th></tr></thead>
+            <thead><tr><th class="l"><span>Fecha</span></th><th class="l"><span>Remito</span></th><th class="l"><span>Factura</span></th><th class="l hide-sm"><span>Cargado</span></th><th><span>Bultos</span></th><th><span>Toneladas</span></th></tr></thead>
             <tbody id="o-remitos"></tbody>
           </table>
         </div>
@@ -826,9 +826,9 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
 
     const tb = $('o-remitos');
     if (!r.remitos.length) {
-      const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 5; td.className = 'l empty'; td.textContent = 'Todavía no hay remitos de PepsiCo en este mes.'; tr.appendChild(td); tb.replaceChildren(tr);
+      const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 6; td.className = 'l empty'; td.textContent = 'Todavía no hay remitos de PepsiCo en este mes.'; tr.appendChild(td); tb.replaceChildren(tr);
     } else {
-      tb.replaceChildren(...r.remitos.slice().sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).map((x) => fila([[ddmm(x.fecha), 'l'], [x.remito, 'l'], [ddmm(x.fecha_carga), 'l hide-sm m'], [n0.format(x.bultos), ''], [t1.format(x.kg / 1000), 'b']])));
+      tb.replaceChildren(...r.remitos.slice().sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).map((x) => fila([[ddmm(x.fecha), 'l'], [x.remito, 'l'], [x.factura || '—', x.factura ? 'l' : 'l m'], [ddmm(x.fecha_carga), 'l hide-sm m'], [n0.format(x.bultos), ''], [t1.format(x.kg / 1000), 'b']])));
     }
     $('o-meses').replaceChildren(...oMeses().map((x) => {
       const s = oResumen(x);
@@ -880,7 +880,7 @@ FROM fin ORDER BY bultos * costo_bulto DESC, venta_28d DESC`;
       const c = el('circle', { cx: X(p.d), cy: Y(p.t), r: 4, fill: 'var(--accent)', stroke: 'var(--panel)', 'stroke-width': 1.5 });
       c.addEventListener('mousemove', (ev) => {
         tip.replaceChildren();
-        const a = document.createElement('div'); a.className = 't'; a.textContent = ddmm(p.x.fecha) + ' · remito ' + p.x.remito;
+        const a = document.createElement('div'); a.className = 't'; a.textContent = ddmm(p.x.fecha) + ' · remito ' + p.x.remito + (p.x.factura ? ' · factura ' + p.x.factura : '');
         const b = document.createElement('div'); b.textContent = t1.format(p.x.kg / 1000) + ' t · acumulado ' + t1.format(p.t) + ' t';
         tip.append(a, b); tip.hidden = false;
         const rb = box.getBoundingClientRect();
