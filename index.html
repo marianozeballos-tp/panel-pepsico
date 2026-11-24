@@ -274,7 +274,7 @@
       </section>
     </div>
 
-    <p class="note">Cuenta la mercadería recibida de PepsiCo: los remitos de ingreso de Gescom (REMI-I), por la fecha del remito. Las facturas repiten los mismos renglones y no se suman. Toneladas = unidades × peso neto de cada artículo en Gescom. Lo recibido se actualiza de lunes a sábado a las 8:00 y a las 14:00.</p>
+    <p class="note">Cuenta la mercadería recibida de PepsiCo: los remitos de ingreso de Gescom (REMI-I), por la fecha del remito. Si un remito se cargó en Gescom más de 7 días después de su fecha, se toma la fecha de carga (la del remito se considera mal tipeada). Las facturas repiten los mismos renglones y no se suman. Toneladas = unidades × peso neto de cada artículo en Gescom. Lo recibido se actualiza de lunes a sábado a las 8:00 y a las 14:00.</p>
   </div>
 
   <!-- ===================== DISPONIBILIDAD ===================== -->
@@ -340,7 +340,7 @@
       </div>
     </section>
 
-    <p class="note">Disponibilidad = artículos activos del mes que tienen al menos un remito de ingreso de PepsiCo (REMI-I) con fecha dentro del mes ÷ artículos activos de la lista. La lista sale del Excel que manda PepsiCo: columna Material SAP (el código de Gescom) y Vigencia = 1.</p>
+    <p class="note">Disponibilidad = artículos activos del mes que tienen al menos un remito de ingreso de PepsiCo (REMI-I) con fecha dentro del mes ÷ artículos activos de la lista. Si un remito se cargó en Gescom más de 7 días después de su fecha, cuenta en el mes de la carga. La lista sale del Excel que manda PepsiCo: columna Material SAP (el código de Gescom) y Vigencia = 1.</p>
   </div>
 </div>
 

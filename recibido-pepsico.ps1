@@ -39,14 +39,20 @@ $compras = @(& $leer "$tmp\compras.json")
 if ($compras.Count -ge 500) { throw "Gescom devolvió 500 compras o más: hace falta paginar" }
 
 $filas = foreach ($c in $compras | Where-Object { $_.codigoTipoDeComprobante -eq 'REMI-I' }) {
+  # Fecha del remito = fecha del comprobante. Si se cargo en Gescom mas de 7 dias despues, la fecha
+  # del comprobante se toma como error de tipeo y se usa la de carga (pedido del usuario, 24/11/2026:
+  # el 0-615 vino con fecha 30/09 y se cargo el 17/11).
+  $fComp = $c.fechaComprobante.Substring(0, 10); $fCarga = $c.fechaCarga.Substring(0, 10)
+  $fecha = if (([datetime]$fCarga - [datetime]$fComp).TotalDays -gt 7) { $fCarga } else { $fComp }
   foreach ($i in $c.items) {
     $a = $articulos[$i.codigoItem]
     $gramos = if ($a) { [double]$a.factorPeso } else { 0 }
     $unidades = [double]$i.cantidad * [double]$i.unidadFactor
     [pscustomobject][ordered]@{
-      mes          = $c.fechaComprobante.Substring(0, 7)
-      fecha        = $c.fechaComprobante.Substring(0, 10)
-      fecha_carga  = $c.fechaCarga.Substring(0, 10)
+      mes          = $fecha.Substring(0, 7)
+      fecha        = $fecha
+      fecha_comprobante = $fComp
+      fecha_carga  = $fCarga
       empresa      = $c.codigoEmpresa
       remito       = '{0}-{1}' -f $c.codigoPuntoVenta, $c.numeroComprobante
       codigo       = $i.codigoItem
